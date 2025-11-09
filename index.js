@@ -3,8 +3,8 @@ const cors = require("cors");
 const { Pool } = require("pg");
 
 const app = express();
-app.use(cors());
 app.use(express.json()); // Permite receber JSON no body
+app.use(cors({ origin: "http://localhost:3000" }));
 
 // Configuração do banco
 const pool = new Pool({
@@ -15,26 +15,86 @@ const pool = new Pool({
   port: 5432,
 });
 
-pool.query('SELECT NOW()', (err, res) => {
+pool.query("SELECT NOW()", (err, res) => {
   if (err) {
-    console.error('Erro de conexão:', err);
+    console.error("Erro de conexão:", err);
   } else {
-    console.log('Conectado! Hora do banco:', res.rows[0]);
+    console.log("Conectado! Hora do banco:", res.rows[0]);
   }
-  pool.end();
 });
 
 // Rota GET - listar usuarios
 app.get("/usuarios", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM tab_usuario");
+    const result = await pool.query("SELECT * FROM tab_usuarios");
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Erro ao buscar usuários" }); // <-- JSON, não string
+    res.status(500).json({ error: "Erro ao buscar usuários" });
   }
 });
 
+// Rota GET - listar receitas
+app.get("/receitas", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM TAB_RECEITAS");
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao buscar receitas" });
+  }
+});
+
+// Rota GET - listar ingredientes receitas
+app.get("/ingredientes/:id", async (req, res) => {
+  const { id } = req.params;
+  idInt = number(id);
+  try {
+    const result = await pool.query(
+      `SELECT * FROM TAB_INGREDIENTES where ID_RECEITA = $1`,
+      [idInt]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao buscar ingredientes" });
+  }
+});
+
+// Rota GET - listar modo preparo receitas
+app.get("/modoPreparo/:id", async (req, res) => {
+  const { id } = req.params;
+  idInt = number(id);
+  try {
+    const result = await pool.query(
+      `SELECT * FROM TAB_MODO_PREPARO where ID_RECEITA = $1`,
+      [idInt]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao buscar Modo de Preparo" });
+  }
+});
+
+// // Rota GET - listar receitas completa
+// app.get("/receitasCompleta", async (req, res) => {
+//   try {
+//     const result = await pool.query(`
+//       SELECT
+//       R.id_receita, R.nome AS nome_receita, R.rendimento, R.sujestao,
+//       I.id_receita AS id_receita_ingrediente, I.ingredientes, M.id_receita AS id_receita_modo,
+//       M.numero_passo,M.passo
+//       FROM tab_receita R
+//       JOIN tab_ingrediente I ON I.id_receita = R.id_receita
+//       JOIN tab_modo_preparo M ON M.id_receita = R.id_receita
+//     `);
+//     res.json(result.rows);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: "Erro ao buscar usuários" }); // <-- JSON, não string
+//   }
+// });
 
 // Rota POST - adicionar receita
 app.post("/receitas", async (req, res) => {
