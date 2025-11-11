@@ -77,24 +77,74 @@ app.get("/modoPreparo/:id", async (req, res) => {
   }
 });
 
-// // Rota GET - listar receitas completa
-// app.get("/receitasCompleta", async (req, res) => {
-//   try {
-//     const result = await pool.query(`
-//       SELECT
-//       R.id_receita, R.nome AS nome_receita, R.rendimento, R.sujestao,
-//       I.id_receita AS id_receita_ingrediente, I.ingredientes, M.id_receita AS id_receita_modo,
-//       M.numero_passo,M.passo
-//       FROM tab_receita R
-//       JOIN tab_ingrediente I ON I.id_receita = R.id_receita
-//       JOIN tab_modo_preparo M ON M.id_receita = R.id_receita
-//     `);
-//     res.json(result.rows);
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ error: "Erro ao buscar usuários" }); // <-- JSON, não string
-//   }
-// });
+// Rota GET - listar receitas completa
+app.get("/receitasCompleta", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        R.id_receita,
+        R.nome AS nome_receita,
+        R.rendimento,
+        R.sujestao,
+        I.id_receita,
+        I.ingrediente,
+        M.id_receita,
+        M.numero_passo,
+        M.passo
+      FROM tab_receitas R
+      LEFT JOIN tab_ingredientes I ON I.id_receita = R.id_receita
+      LEFT JOIN tab_modo_preparo M ON M.id_receita = R.id_receita
+      ORDER BY R.id_receita, M.numero_passo
+    `);
+
+    const receitasMap = {};
+
+    result.rows.forEach((row) => {
+      if (!receitasMap[row.id_receita]) {
+        receitasMap[row.id_receita] = {
+          id: row.id_receita,
+          nome: row.nome_receita,
+          rendimento: row.rendimento,
+          sujestao: row.sujestao,
+          ingredientes: [],
+          modoPreparo: [],
+        };
+      }
+
+      if (
+        row.id_ingrediente &&
+        !receitasMap[row.id_receita].ingredientes.some(
+          (i) => i.id === row.id_ingrediente
+        )
+      ) {
+        receitasMap[row.id_receita].ingredientes.push({
+          id: row.id_ingrediente,
+          ingrediente: row.ingrediente,
+        });
+      }
+
+      if (
+        row.id_modo &&
+        !receitasMap[row.id_receita].modoPreparo.some(
+          (p) => p.id === row.id_modo
+        )
+      ) {
+        receitasMap[row.id_receita].modoPreparo.push({
+          id: row.id_modo,
+          numeroPasso: row.numero_passo,
+          passo: row.passo,
+        });
+      }
+    });
+
+    const receitasArray = Object.values(receitasMap);
+
+    res.json(receitasArray);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao buscar receitas completas" });
+  }
+});
 
 // Rota POST - adicionar receita
 app.post("/receitas", async (req, res) => {
