@@ -86,65 +86,43 @@ app.get("/receitasCompleta", async (req, res) => {
         R.nome AS nome_receita,
         R.rendimento,
         R.sujestao,
-        I.id_receita,
-        I.ingrediente,
-        M.id_receita,
-        M.numero_passo,
-        M.passo
+
+        (
+          SELECT json_agg(
+            json_build_object(
+              'id', I.id_receita,
+              'ingrediente', I.ingrediente
+            )
+          )
+          FROM tab_ingredientes I
+          WHERE I.id_receita = R.id_receita
+        ) AS ingredientes,
+
+        (
+          SELECT json_agg(
+            json_build_object(
+              'id', M.id_receita,
+              'numeroPasso', M.numero_passo,
+              'passo', M.passo
+            )
+            ORDER BY M.numero_passo
+          )
+          FROM tab_modo_preparo M
+          WHERE M.id_receita = R.id_receita
+        ) AS modoPreparo
+
       FROM tab_receitas R
-      LEFT JOIN tab_ingredientes I ON I.id_receita = R.id_receita
-      LEFT JOIN tab_modo_preparo M ON M.id_receita = R.id_receita
-      ORDER BY R.id_receita, M.numero_passo
+      ORDER BY R.id_receita;
     `);
 
-    const receitasMap = {};
-
-    result.rows.forEach((row) => {
-      if (!receitasMap[row.id_receita]) {
-        receitasMap[row.id_receita] = {
-          id: row.id_receita,
-          nome: row.nome_receita,
-          rendimento: row.rendimento,
-          sujestao: row.sujestao,
-          ingredientes: [],
-          modoPreparo: [],
-        };
-      }
-
-      if (
-        row.id_ingrediente &&
-        !receitasMap[row.id_receita].ingredientes.some(
-          (i) => i.id === row.id_ingrediente
-        )
-      ) {
-        receitasMap[row.id_receita].ingredientes.push({
-          id: row.id_ingrediente,
-          ingrediente: row.ingrediente,
-        });
-      }
-
-      if (
-        row.id_modo &&
-        !receitasMap[row.id_receita].modoPreparo.some(
-          (p) => p.id === row.id_modo
-        )
-      ) {
-        receitasMap[row.id_receita].modoPreparo.push({
-          id: row.id_modo,
-          numeroPasso: row.numero_passo,
-          passo: row.passo,
-        });
-      }
-    });
-
-    const receitasArray = Object.values(receitasMap);
-
-    res.json(receitasArray);
+    res.json(result.rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Erro ao buscar receitas completas" });
   }
 });
+
+
 
 // Rota POST - adicionar receita
 app.post("/receitas", async (req, res) => {
